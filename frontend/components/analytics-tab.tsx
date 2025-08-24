@@ -1,5 +1,5 @@
 "use client"
-
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
@@ -58,14 +58,16 @@ function normalizeRow(row: Record<string, any>) {
 }
 
 export function AnalyticsTab({ project }: AnalyticsTabProps) {
+  const params = useParams(); // returns an object
+  const projectId = params.id; // same name as in your route segment
   const [charts, setCharts] = useState<any[]>([])
-
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch(`http://localhost:8080/charts/yield`)
-      const json = await res.json()
+      const res = await fetch(`http://localhost:8080/charts/${projectId}`)
+      const json = await res.json();
+      console.log("this is the fetched data ", json);
       // normalize data keys + numbers
-      const normalized = json.map((c: any) => ({
+      const normalized = json.charts.map((c: any) => ({
         ...c,
         data: c.data.map(normalizeRow),
       }))
@@ -73,7 +75,7 @@ export function AnalyticsTab({ project }: AnalyticsTabProps) {
       setCharts(normalized)
     }
     fetchData()
-  }, [project.id])
+  }, [projectId])
 
   return (
   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

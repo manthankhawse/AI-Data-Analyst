@@ -5,9 +5,12 @@ import csv from "csv-parser";
 import multer from "multer";
 import mongoose from "mongoose";
 import XLSX from "xlsx";
+import cors from "cors";
 
 const app = express();
 const PORT = 8080;
+
+app.use(cors());
 
 // PostgreSQL
 const DB_URL = "postgresql://myuser:mypassword@localhost:5432/mydb";
@@ -24,6 +27,7 @@ mongoDb.once("open", () => console.log("✅ Connected to MongoDB"));
 // Mongo schema
 const tableSchema = new mongoose.Schema({
   projectId: { type: String, required: true },
+  projectName : {type:String, required: true},
   tableName: { type: String, required: true },
   schema: [
     {
@@ -31,6 +35,10 @@ const tableSchema = new mongoose.Schema({
       type: { type: String, default: "TEXT" },
     },
   ],
+  numRows: { type: Number, default: 0 },  // NEW FIELD
+  charts: { type: Array, default: [] },
+},{
+  timestamps:true
 });
 const TableMeta = mongoose.model("TableMeta", tableSchema);
 
@@ -245,6 +253,7 @@ async function insertData(tableName, columns, rows, schemaMetadata, chunkSize = 
  */
 app.post("/upload/:projectId/:tableName", upload.single("file"), async (req, res) => {
   const { projectId, tableName } = req.params;
+  const { projectName } = req.body;
   const filePath = req.file?.path;
 
   if (!filePath) return res.status(400).send("❌ No file uploaded");
@@ -261,18 +270,58 @@ app.post("/upload/:projectId/:tableName", upload.single("file"), async (req, res
     const schemaMetadata = await createTable(tableName, data.columns, data.rows);
     await insertData(tableName, data.columns, data.rows, schemaMetadata);
 
-    await TableMeta.findOneAndUpdate(
+    const updatedTable = await TableMeta.findOneAndUpdate(
       { projectId, tableName },
-      { projectId, tableName, schema: schemaMetadata },
+      { projectId, tableName, projectName, schema: schemaMetadata, numRows: data.rows.length },
       { upsert: true, new: true }
     );
 
     fs.unlinkSync(filePath);
-    res.send(`✅ Data uploaded to "${tableName}" and schema saved for project "${projectId}"`);
+    res.json({
+      success: true,
+      message: `✅ Data uploaded to "${tableName}" and schema saved for project "${projectId}"`,
+      table: {
+        projectId: updatedTable.projectId,
+        tableName: updatedTable.tableName,
+        projectName: updatedTable.projectName,
+        numRows: updatedTable.numRows,
+      },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).send("❌ Error processing file");
   }
 });
+
+// app.get(/)
+
+app.get("/projects", async (req, res) => {
+  try {
+    // Fetch all tables metadata
+    const tables = await TableMeta.find().lean();
+
+    // Group by projectId
+    const projects = {};
+    for (const t of tables) {
+      if (!projects[t.projectId]) {
+        projects[t.projectId] = { projectId: t.projectId, name: t.projectName, tables: [] };
+      }
+      projects[t.projectId].tables.push({
+        tableName: t.tableName,
+        schema: t.schema,
+        numRows: t.numRows,
+        charts: t.charts,
+      });
+    }
+
+    res.json(Object.values(projects));
+  } catch (err) {
+    console.error("❌ Error fetching projects:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
+
 
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

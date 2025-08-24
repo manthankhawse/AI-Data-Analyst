@@ -1,11 +1,12 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { ArrowLeft, Download, RefreshCw, Share, MoreHorizontal, Database, Calendar, FileText } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { ArrowLeft, Download, RefreshCw, Share, MoreHorizontal, Database, Calendar, FileText, BarChart2 } from "lucide-react"
+import { useRouter, usePathname } from "next/navigation"
 
 interface Dataset {
   name: string
@@ -13,6 +14,14 @@ interface Dataset {
   records: number
   columns: number
   lastUpdated: string
+}
+
+interface ProjectMetadata {
+  name : string
+  projectId: string
+  tableName: string
+  numRows: number
+  numCharts: number
 }
 
 interface Project {
@@ -23,12 +32,36 @@ interface Project {
   status: string
 }
 
-interface ProjectHeaderProps {
-  project: Project
-}
-
-export function ProjectHeader({ project }: ProjectHeaderProps) {
+export function ProjectHeader({ project }: { project: Project }) {
   const router = useRouter()
+  const pathname = usePathname()
+  const [metadata, setMetadata] = useState<ProjectMetadata | null>(null)
+
+  const projectIdFromUrl = pathname.split("/").pop() // assumes URL ends with projectId
+
+  useEffect(() => {
+    if (!projectIdFromUrl) return
+
+    async function fetchMetadata() {
+      try {
+        const res = await fetch(`http://localhost:8080/charts/${projectIdFromUrl}`)
+        if (!res.ok) throw new Error("Failed to fetch project metadata")
+        const data = await res.json()
+        console.log("fetched data in header ", data);
+        setMetadata({
+          name: data.projectName,
+          projectId: data.projectId,
+          tableName: data.tableName,
+          numRows: data.charts?.[0]?.data.length || 0, // approximate total rows for first chart
+          numCharts: data.charts?.length || 0
+        })
+      } catch (err) {
+        console.error("❌ Error fetching metadata:", err)
+      }
+    }
+
+    fetchMetadata()
+  }, [projectIdFromUrl])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -53,14 +86,9 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-heading font-bold truncate">{project.name}</h1>
-                <Badge className="bg-accent/10 text-accent-foreground border-accent/20 shrink-0">
-                  {project.status}
-                </Badge>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-heading font-bold truncate">{metadata? metadata.name : "Project Name"}</h1>
               </div>
-              <p className="text-muted-foreground mb-4 text-sm sm:text-base line-clamp-2">{project.description}</p>
-
-              {/* Dataset Info - Responsive Layout */}
+              {/* Dataset Info */}
               <div className="space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-6 text-xs sm:text-sm">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -77,6 +105,25 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
                   <span className="truncate">Updated {formatDate(project.dataset.lastUpdated)}</span>
                 </div>
               </div>
+
+              {/* Project Metadata */}
+              {metadata && (
+                <div className="mt-4 flex flex-wrap items-center gap-4 text-xs sm:text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">Project ID:</span> {metadata.projectId}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">Table Name:</span> {metadata.tableName}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">Rows:</span> {metadata.numRows.toLocaleString()}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <BarChart2 className="w-4 h-4 text-muted-foreground" />
+                    <span>{metadata.numCharts} charts</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -86,17 +133,14 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh Data
             </Button>
-
             <Button variant="outline" size="sm">
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
-
             <Button variant="outline" size="sm">
               <Share className="w-4 h-4 mr-2" />
               Share
             </Button>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">
@@ -112,7 +156,7 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
             </DropdownMenu>
           </div>
 
-          {/* Mobile/Tablet Actions */}
+          {/* Mobile Actions */}
           <div className="flex lg:hidden items-center gap-2 shrink-0">
             <Sheet>
               <SheetTrigger asChild>
@@ -126,31 +170,24 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Refresh Data
                   </Button>
-
                   <Button variant="outline" className="w-full justify-start bg-transparent">
                     <Download className="w-4 h-4 mr-2" />
                     Export Data
                   </Button>
-
                   <Button variant="outline" className="w-full justify-start bg-transparent">
                     <Share className="w-4 h-4 mr-2" />
                     Share Project
                   </Button>
-
                   <hr className="my-4" />
-
                   <Button variant="outline" className="w-full justify-start bg-transparent">
                     Edit Project
                   </Button>
-
                   <Button variant="outline" className="w-full justify-start bg-transparent">
                     Duplicate Project
                   </Button>
-
                   <Button variant="outline" className="w-full justify-start bg-transparent">
                     Archive Project
                   </Button>
-
                   <Button variant="destructive" className="w-full justify-start">
                     Delete Project
                   </Button>

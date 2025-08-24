@@ -1,5 +1,6 @@
 import express from "express";
 import { Pool } from "pg";
+import mongoose from "mongoose";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -14,6 +15,10 @@ app.use(cors());
 const pool = new Pool({
   connectionString: "postgresql://myuser:mypassword@localhost:5432/mydb"
 });
+
+mongoose.connect("mongodb://mongo_user:mongo_pass@localhost:27017/csv_metadata?authSource=admin"); 
+
+const mongoDb = mongoose.connection; mongoDb.once("open", () => console.log("✅ MongoDB connected"));
 
 // ---- Gemini ----
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -83,11 +88,20 @@ function quoteIdentifiers(query, schema) {
 }
 
 // ---- Route ----
-app.get("/charts/:tableName", async (req, res) => {
-  const { tableName } = req.params;
+app.get("/charts/:projectId", async (req, res) => {
+  const { projectId } = req.params;
 
   try {
-    // 1. Fetch schema directly from Postgres
+    const collection = mongoDb.collection("tablemetas");
+    const project = await collection.findOne({ projectId });
+
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    const tableName = project.tableName;
+
+    // Fetch schema from Postgres
     const schemaRes = await pool.query(
       `SELECT column_name, data_type
        FROM information_schema.columns
@@ -97,13 +111,29 @@ app.get("/charts/:tableName", async (req, res) => {
     );
 
     if (schemaRes.rows.length === 0) {
-      return res.status(404).json({ error: "Table not found" });
+      return res.status(404).json({ error: "Table not found in Postgres" });
     }
 
-    // 2. Ask Gemini for queries + chart configs
-    const queries = await askGeminiForQueries(tableName, schemaRes.rows);
+    let queries;
 
-    // 3. Execute queries
+    if (project.charts && project.charts.length > 0) {
+      // ✅ Use cached charts
+      queries = project.charts;
+      console.log("📂 Using cached charts from MongoDB");
+    } else {
+      // ❌ No charts, generate using Gemini
+      queries = await askGeminiForQueries(tableName, schemaRes.rows);
+
+      // Save queries to MongoDB for next time
+      await collection.updateOne(
+        { projectId },
+        { $set: { charts: queries } }
+      );
+
+      console.log("✨ Generated new charts and saved to MongoDB");
+    }
+
+    // Execute queries
     const results = [];
     for (const q of queries) {
       try {
@@ -113,20 +143,26 @@ app.get("/charts/:tableName", async (req, res) => {
           description: q.description,
           query: safeQuery,
           chart: q.chart,
-          data: pgRes.rows
+          data: pgRes.rows,
         });
       } catch (err) {
         console.error("❌ SQL failed:", q.query, err.message);
       }
     }
 
-    // 4. Return
-    res.json(results);
+    res.json({
+      projectId,
+      projectName: project.projectName,
+      tableName,
+      charts: results,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+
 
 app.listen(PORT, () =>
   console.log(`🚀 Server running on http://localhost:${PORT}`)

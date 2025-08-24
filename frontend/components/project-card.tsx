@@ -25,12 +25,8 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project }: ProjectCardProps) {
-  const formatNumber = (num: number) => {
-    if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}k`
-    }
-    return num.toString()
-  }
+
+  console.log(project);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -64,30 +60,8 @@ export function ProjectCard({ project }: ProjectCardProps) {
             </h3>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="w-4 h-4" />
-              <span>Updated {formatDate(project.lastUpdated)}</span>
+              <span>Updated {project.lastUpdated}</span>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Badge className={getStatusColor(project.status)}>{project.status}</Badge>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Open Project
-                </DropdownMenuItem>
-                <DropdownMenuItem>Edit</DropdownMenuItem>
-                <DropdownMenuItem>Duplicate</DropdownMenuItem>
-                <DropdownMenuItem>Export</DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
       </CardHeader>
@@ -98,7 +72,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 mx-auto mb-2">
               <Database className="w-4 h-4 text-primary" />
             </div>
-            <div className="text-sm font-medium">{formatNumber(project.stats.records)}</div>
+            <div className="text-sm font-medium">{project.stats.records}</div>
             <div className="text-xs text-muted-foreground">Records</div>
           </div>
 
@@ -112,7 +86,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
           <div className="text-center">
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-secondary/10 mx-auto mb-2">
-              <Lightbulb className="w-4 h-4 text-secondary" />
+              <Lightbulb className="w-4 h-4 text-accent" />
             </div>
             <div className="text-sm font-medium">{project.stats.insights}</div>
             <div className="text-xs text-muted-foreground">Insights</div>

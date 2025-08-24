@@ -3,16 +3,40 @@ import fs from "fs";
 import { Pool } from "pg";
 import csv from "csv-parser";
 import multer from "multer";
-import path from "path";
+import mongoose from "mongoose";
 
 const app = express();
 const PORT = 3000;
 
-// 🔹 Local Docker Postgres URL
+// 🔹 Postgres connection
 const DB_URL = "postgresql://myuser:mypassword@localhost:5432/mydb";
 const pool = new Pool({ connectionString: DB_URL });
 
-// Setup multer for file uploads (temp dir)
+// 🔹 MongoDB connection
+const MONGO_URL = "mongodb://localhost:27017/csv_metadata";
+mongoose.connect(MONGO_URL, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+const mongoDb = mongoose.connection;
+mongoDb.on("error", console.error.bind(console, "MongoDB connection error:"));
+mongoDb.once("open", () => console.log("✅ Connected to MongoDB"));
+
+// MongoDB schema
+const tableSchema = new mongoose.Schema({
+  projectId: { type: String, required: true },
+  tableName: { type: String, required: true },
+  schema: [
+    {
+      columnName: { type: String, required: true },
+      type: { type: String, default: "TEXT" }, // default to TEXT for now
+    },
+  ],
+});
+
+const TableMeta = mongoose.model("TableMeta", tableSchema);
+
+// Setup multer for file uploads
 const upload = multer({ dest: "uploads/" });
 
 // --- helpers ---
@@ -81,11 +105,8 @@ async function insertData(tableName, columns, rows, chunkSize = 500) {
   }
 }
 
-// --- API routes ---
-
-// Upload CSV into a specific table
-app.post("/upload-csv/:tableName", upload.single("file"), async (req, res) => {
-  const tableName = req.params.tableName;
+app.post("/upload-csv/:projectId/:tableName", upload.single("file"), async (req, res) => {
+  const { projectId, tableName } = req.params;
   const filePath = req.file?.path;
 
   if (!filePath) {
@@ -97,10 +118,18 @@ app.post("/upload-csv/:tableName", upload.single("file"), async (req, res) => {
     await createTable(tableName, columns);
     await insertData(tableName, columns, rows);
 
+    // Store schema metadata in MongoDB
+    const schemaMetadata = columns.map((col) => ({ columnName: col, type: "TEXT" }));
+    await TableMeta.findOneAndUpdate(
+      { projectId, tableName },
+      { projectId, tableName, schema: schemaMetadata },
+      { upsert: true, new: true }
+    );
+
     // Cleanup uploaded file
     fs.unlinkSync(filePath);
 
-    res.send(`✅ Data uploaded successfully to table "${tableName}"!`);
+    res.send(`✅ Data uploaded to "${tableName}" and schema saved for project "${projectId}"`);
   } catch (err) {
     console.error(err);
     res.status(500).send("❌ Error uploading CSV data");

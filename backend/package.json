@@ -4,6 +4,11 @@
   },
   "type": "module",
   "dependencies": {
+    "@google/genai": "^1.15.0",
+    "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "body-parser": "^2.2.0",
     "csv-parser": "^3.2.0",
     "express": "^5.1.0",
     "multer": "^2.0.2",

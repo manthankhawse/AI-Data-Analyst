@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import {
@@ -14,44 +15,22 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
+  LineChart,
+  Line,
+  ScatterChart,
+  Scatter,
+  Treemap,
+  Tooltip,
+  Legend,
 } from "recharts"
 
-// Mock analytics data
-const salesByMonth = [
-  { month: "Jan", sales: 45000, target: 40000 },
-  { month: "Feb", sales: 52000, target: 45000 },
-  { month: "Mar", sales: 48000, target: 50000 },
-  { month: "Apr", sales: 61000, target: 55000 },
-  { month: "May", sales: 55000, target: 60000 },
-  { month: "Jun", sales: 67000, target: 65000 },
+const COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
 ]
-
-const salesByRegion = [
-  { region: "North America", sales: 180000, percentage: 35 },
-  { region: "Europe", sales: 140000, percentage: 27 },
-  { region: "Asia Pacific", sales: 120000, percentage: 23 },
-  { region: "Latin America", sales: 80000, percentage: 15 },
-]
-
-const productPerformance = [
-  { product: "Product A", revenue: 85000, units: 1200, margin: 0.35 },
-  { product: "Product B", revenue: 72000, units: 980, margin: 0.42 },
-  { product: "Product C", revenue: 68000, units: 850, margin: 0.28 },
-  { product: "Product D", revenue: 54000, units: 720, margin: 0.38 },
-  { product: "Product E", revenue: 41000, units: 560, margin: 0.31 },
-]
-
-const dailyTrend = [
-  { date: "Jan 1", value: 2400 },
-  { date: "Jan 2", value: 1398 },
-  { date: "Jan 3", value: 9800 },
-  { date: "Jan 4", value: 3908 },
-  { date: "Jan 5", value: 4800 },
-  { date: "Jan 6", value: 3800 },
-  { date: "Jan 7", value: 4300 },
-]
-
-const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"]
 
 interface Project {
   id: string
@@ -65,228 +44,128 @@ interface AnalyticsTabProps {
   project: Project
 }
 
+function normalizeRow(row: Record<string, any>) {
+  const out: Record<string, any> = {}
+  for (const key of Object.keys(row)) {
+    let val = row[key]
+    // coerce string numbers to numbers
+    if (typeof val === "string" && !isNaN(Number(val))) {
+      val = Number(val)
+    }
+    out[key.toLowerCase()] = val
+  }
+  return out
+}
+
 export function AnalyticsTab({ project }: AnalyticsTabProps) {
+  const [charts, setCharts] = useState<any[]>([])
+
+  useEffect(() => {
+    async function fetchData() {
+      const res = await fetch(`http://localhost:8080/charts/yield`)
+      const json = await res.json()
+      // normalize data keys + numbers
+      const normalized = json.map((c: any) => ({
+        ...c,
+        data: c.data.map(normalizeRow),
+      }))
+      console.log(normalized)
+      setCharts(normalized)
+    }
+    fetchData()
+  }, [project.id])
+
   return (
-    <div className="space-y-6">
-      {/* Key Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="transition-all duration-200 hover:shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg sm:text-2xl font-bold text-gradient-primary">$520,000</div>
-            <p className="text-xs text-muted-foreground">+12.5% from last quarter</p>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-all duration-200 hover:shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg sm:text-2xl font-bold">4,310</div>
-            <p className="text-xs text-muted-foreground">+8.2% from last quarter</p>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-all duration-200 hover:shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Avg Order Value</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg sm:text-2xl font-bold">$120.65</div>
-            <p className="text-xs text-muted-foreground">+3.8% from last quarter</p>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-all duration-200 hover:shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Conversion Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg sm:text-2xl font-bold">3.24%</div>
-            <p className="text-xs text-muted-foreground">+0.4% from last quarter</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Sales Trend */}
-        <Card className="transition-all duration-200 hover:shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Sales vs Target</CardTitle>
-            <CardDescription className="text-sm">Monthly sales performance compared to targets</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer
-              config={{
-                sales: {
-                  label: "Sales",
-                  color: "hsl(var(--chart-1))",
-                },
-                target: {
-                  label: "Target",
-                  color: "hsl(var(--chart-2))",
-                },
-              }}
-              className="h-[250px] sm:h-[300px]"
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={salesByMonth}>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {charts.map((chart, idx) => (
+      <Card key={idx} className="transition-all duration-200 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-lg sm:text-xl">{chart.description}</CardTitle>
+          <CardDescription className="text-sm">{chart.query}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={{}} className="h-[250px] sm:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              {chart.chart.type === "BarChart" && (
+                <BarChart data={chart.data}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
+                  <XAxis dataKey={chart.chart.x.toLowerCase()} />
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="sales" fill="var(--color-sales)" />
-                  <Bar dataKey="target" fill="var(--color-target)" />
+                  <Bar dataKey={chart.chart.y.toLowerCase()} fill="var(--chart-1)" />
                 </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+              )}
 
-        {/* Regional Distribution */}
-        <Card className="transition-all duration-200 hover:shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Sales by Region</CardTitle>
-            <CardDescription className="text-sm">Revenue distribution across different regions</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer
-              config={{
-                sales: {
-                  label: "Sales",
-                  color: "hsl(var(--chart-1))",
-                },
-              }}
-              className="h-[250px] sm:h-[300px]"
-            >
-              <ResponsiveContainer width="100%" height="100%">
+              {chart.chart.type === "LineChart" && (
+                <LineChart data={chart.data}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey={chart.chart.x.toLowerCase()} />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line type="monotone" dataKey={chart.chart.y.toLowerCase()} stroke="var(--chart-1)" />
+                </LineChart>
+              )}
+
+              {chart.chart.type === "PieChart" && (
                 <PieChart>
                   <Pie
-                    data={salesByRegion}
+                    data={chart.data}
+                    dataKey={chart.chart.y.toLowerCase()}
+                    nameKey={chart.chart.x.toLowerCase()}
                     cx="50%"
                     cy="50%"
                     outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="sales"
-                    label={({ region, percentage }) => `${region} (${percentage}%)`}
+                    label
                   >
-                    {salesByRegion.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {chart.data.map((_: any, index: number) => (
+                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <ChartTooltip content={<ChartTooltipContent />} />
                 </PieChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+              )}
 
-        {/* Product Performance */}
-        <Card className="transition-all duration-200 hover:shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Product Performance</CardTitle>
-            <CardDescription className="text-sm">Revenue and units sold by product</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer
-              config={{
-                revenue: {
-                  label: "Revenue",
-                  color: "hsl(var(--chart-1))",
-                },
-                units: {
-                  label: "Units",
-                  color: "hsl(var(--chart-2))",
-                },
-              }}
-              className="h-[250px] sm:h-[300px]"
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={productPerformance} layout="horizontal">
+              {chart.chart.type === "AreaChart" && (
+                <AreaChart data={chart.data}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="product" type="category" width={60} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="revenue" fill="var(--color-revenue)" />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        {/* Daily Trend */}
-        <Card className="transition-all duration-200 hover:shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Daily Trend</CardTitle>
-            <CardDescription className="text-sm">Daily sales activity over the past week</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer
-              config={{
-                value: {
-                  label: "Sales",
-                  color: "hsl(var(--chart-1))",
-                },
-              }}
-              className="h-[250px] sm:h-[300px]"
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={dailyTrend}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
+                  <XAxis dataKey={chart.chart.x.toLowerCase()} />
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Area
                     type="monotone"
-                    dataKey="value"
-                    stroke="var(--color-value)"
-                    fill="var(--color-value)"
+                    dataKey={chart.chart.y.toLowerCase()}
+                    stroke="var(--chart-1)"
+                    fill="var(--chart-1)"
                     fillOpacity={0.3}
                   />
                 </AreaChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      </div>
+              )}
 
-      {/* Data Table */}
-      <Card className="transition-all duration-200 hover:shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Detailed Analytics</CardTitle>
-          <CardDescription className="text-sm">Comprehensive breakdown of key metrics</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs sm:text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-2 font-medium">Product</th>
-                  <th className="text-right p-2 font-medium">Revenue</th>
-                  <th className="text-right p-2 font-medium hidden sm:table-cell">Units Sold</th>
-                  <th className="text-right p-2 font-medium hidden md:table-cell">Margin</th>
-                  <th className="text-right p-2 font-medium">Growth</th>
-                </tr>
-              </thead>
-              <tbody>
-                {productPerformance.map((product, index) => (
-                  <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
-                    <td className="p-2 font-medium">{product.product}</td>
-                    <td className="p-2 text-right">${product.revenue.toLocaleString()}</td>
-                    <td className="p-2 text-right hidden sm:table-cell">{product.units.toLocaleString()}</td>
-                    <td className="p-2 text-right hidden md:table-cell">{(product.margin * 100).toFixed(1)}%</td>
-                    <td className="p-2 text-right text-green-600">+{(Math.random() * 20).toFixed(1)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              {chart.chart.type === "ScatterChart" && (
+                <ScatterChart>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey={chart.chart.x.toLowerCase()} />
+                  <YAxis dataKey={chart.chart.y.toLowerCase()} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Scatter data={chart.data} fill="var(--chart-1)" />
+                </ScatterChart>
+              )}
+
+              {chart.chart.type === "Treemap" && (
+                <Treemap
+                  data={chart.data}
+                  dataKey={chart.chart.y.toLowerCase()}
+                  nameKey={chart.chart.x.toLowerCase()}
+                  stroke="#fff"
+                  fill="var(--chart-1)"
+                />
+              )}
+            </ResponsiveContainer>
+          </ChartContainer>
         </CardContent>
       </Card>
-    </div>
-  )
+    ))}
+  </div>
+)
+
 }

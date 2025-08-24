@@ -1,8 +1,8 @@
 {
   "scripts": {
-    "dev": "node index.js"
+    "dev": "nodemon index.js"
   },
-  "type": "module""module",
+  "type": "module",
   "dependencies": {
     "csv-parser": "^3.2.0",
     "express": "^5.1.0",

@@ -2,6 +2,7 @@ import { ProjectHeader } from "@/components/project-header"
 import { ProjectTabs } from "@/components/project-tabs"
 import { AnalyticsTab } from "@/components/analytics-tab"
 import { ChatTab } from "@/components/chat-tab"
+import ProfilingTab from "@/components/ProfilingTab"
 
 // Mock project data
 const mockProject = {
@@ -32,6 +33,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
       <div className="container mx-auto px-6 py-6">
         <ProjectTabs defaultTab="analytics">
           <AnalyticsTab project={mockProject} />
+          <ProfilingTab />
           <ChatTab project={mockProject} />
         </ProjectTabs>
       </div>

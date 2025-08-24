@@ -89,7 +89,7 @@ export function ProjectHeader({ project }: { project: Project }) {
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-heading font-bold truncate">{metadata? metadata.name : "Project Name"}</h1>
               </div>
               {/* Dataset Info */}
-              <div className="space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-6 text-xs sm:text-sm">
+              {/* <div className="space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-6 text-xs sm:text-sm">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
                   <span className="font-medium truncate">{project.dataset.name}</span>
@@ -104,7 +104,7 @@ export function ProjectHeader({ project }: { project: Project }) {
                   <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
                   <span className="truncate">Updated {formatDate(project.dataset.lastUpdated)}</span>
                 </div>
-              </div>
+              </div> */}
 
               {/* Project Metadata */}
               {metadata && (

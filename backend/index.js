@@ -636,7 +636,7 @@ app.post("/project/:projectId/query", async (req, res) => {
     const sqlDecisionPrompt = `
 You are an AI assistant for a data project.
 Determine if the user's message should be converted to a SQL query.
-Respond only with "SQL" or "CONVERSATION".
+Respond only with "SQL" or "CONVERSATION". If the query involves data definition or data manipulation language simply move to conversation and just say you dont have access to DDL and DML queries, dont execute any type of queries except data query language.
 
 User message: "${message}"
     `;

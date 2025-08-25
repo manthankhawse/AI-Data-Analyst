@@ -596,7 +596,7 @@ const compiled = graph.compile();
 
 app.post("/project/:projectId/query", async (req, res) => {
   const { projectId } = req.params;
-  const { message } = req.body;
+  let { message } = req.body;
 
   console.log("📩 Incoming request:", { projectId, message });
 
@@ -607,6 +607,7 @@ app.post("/project/:projectId/query", async (req, res) => {
 
   try {
     // --- Fetch project metadata ---
+
     console.log("🔍 Fetching project metadata from MongoDB");
     const project = await TableMeta.findOne({ projectId });
     if (!project) {
@@ -627,7 +628,7 @@ app.post("/project/:projectId/query", async (req, res) => {
     const chatDoc = await ChatHistory.findOne({ projectId });
     const messages = chatDoc?.messages || [];
     console.log(`📝 Previous messages: ${messages.length}`);
-
+    message = await translateToEnglish(message);
     messages.push({ role: "user", content: message });
 
     // --- Decide if SQL is needed ---
@@ -713,9 +714,7 @@ User message: "${message}"
 
 const md = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-app.post("/translate", async (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: "No text provided" });
+async function translateToEnglish(text){
 
   try {
     // Get the generative model
@@ -731,13 +730,11 @@ Return only the translated text, no explanations.
     // Generate content
     const result = await model.generateContent(prompt);
     let translated = result.response.text();
-
-    res.json({ translatedText: translated });
-  } catch (err) {
-    console.error("Translation error:", err);
-    res.status(500).json({ translatedText: text, error: err.message });
+    return translated;
+  }catch(e){
+    console.log(e);
   }
-});
+};
 
 
 

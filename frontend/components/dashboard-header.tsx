@@ -21,7 +21,7 @@ export function DashboardHeader() {
             <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
               <div className="w-4 h-4 bg-white rounded-sm" />
             </div>
-            <span className="font-heading font-bold text-xl hidden sm:block">DataLytics</span>
+            <span className="font-heading font-bold text-xl hidden sm:block">DataPulse</span>
             <span className="font-heading font-bold text-lg sm:hidden">DL</span>
           </div>
 

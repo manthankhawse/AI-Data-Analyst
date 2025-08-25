@@ -95,20 +95,7 @@ export function ChatTab({ project }: ChatTabProps) {
     scrollToBottom()
   }, [messages])
 
-  const translateToEnglish = async (text: string): Promise<string> => {
-  try {
-    const res = await fetch("http://localhost:8080/translate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    const data = await res.json();
-    return data.translatedText || text;
-  } catch (err) {
-    console.error("Translation error:", err);
-    return text;
-  }
-};
+  
 
 
   const handleSendMessage = async () => {
@@ -130,8 +117,6 @@ export function ChatTab({ project }: ChatTabProps) {
 
 
     try {
-       const translatedMessage = await translateToEnglish(userMessage.content);
-userMessage.content = translatedMessage;
       const res = await fetch(`http://localhost:8080/project/${projectId}/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

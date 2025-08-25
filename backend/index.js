@@ -711,6 +711,34 @@ User message: "${message}"
 });
 
 
+const md = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+app.post("/translate", async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: "No text provided" });
+
+  try {
+    // Get the generative model
+    const model = md.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    // Build prompt
+    const prompt = `
+Translate the following text to English, keeping the meaning intact:
+"""${text}"""
+Return only the translated text, no explanations.
+`;
+
+    // Generate content
+    const result = await model.generateContent(prompt);
+    let translated = result.response.text();
+
+    res.json({ translatedText: translated });
+  } catch (err) {
+    console.error("Translation error:", err);
+    res.status(500).json({ translatedText: text, error: err.message });
+  }
+});
+
 
 
 

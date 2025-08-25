@@ -48,6 +48,45 @@ export function ChatTab({ project }: ChatTabProps) {
   const [pagination, setPagination] = useState<Record<string, number>>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  const [isListening, setIsListening] = useState(false);
+
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US"; // default language
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInputValue(transcript);
+      handleSendMessage();
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+  }, []);
+
+  const startListening = () => {
+    if (!recognitionRef.current) return;
+    setIsListening(true);
+    recognitionRef.current.start();
+  };
+
+  const stopListening = () => {
+    if (!recognitionRef.current) return;
+    recognitionRef.current.stop();
+    setIsListening(false);
+  };
+
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -55,6 +94,22 @@ export function ChatTab({ project }: ChatTabProps) {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  const translateToEnglish = async (text: string): Promise<string> => {
+  try {
+    const res = await fetch("http://localhost:8080/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json();
+    return data.translatedText || text;
+  } catch (err) {
+    console.error("Translation error:", err);
+    return text;
+  }
+};
+
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return
@@ -70,7 +125,13 @@ export function ChatTab({ project }: ChatTabProps) {
     setInputValue("")
     setIsTyping(true)
 
+
+   
+
+
     try {
+       const translatedMessage = await translateToEnglish(userMessage.content);
+userMessage.content = translatedMessage;
       const res = await fetch(`http://localhost:8080/project/${projectId}/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -275,6 +336,14 @@ export function ChatTab({ project }: ChatTabProps) {
               disabled={isTyping}
               className="text-sm"
             />
+            <Button
+              variant={isListening ? "destructive" : "outline"}
+              size="sm"
+              onClick={isListening ? stopListening : startListening}
+            >
+              {isListening ? "🎙️ Listening..." : "🎤 Voice"}
+            </Button>
+
             <Button
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || isTyping}

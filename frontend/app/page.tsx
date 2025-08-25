@@ -69,6 +69,22 @@ export default function DashboardPage() {
 
       const msg = await res.json()
 
+       if (file) {
+      const edaFormData = new FormData();
+      edaFormData.append("file", file);
+      edaFormData.append("html_filename", `${projectId}.html`);
+
+      const edaRes = await fetch(`http://localhost:8000/generate-eda`, {
+        method: "POST",
+        body: edaFormData,
+      });
+
+      if (!edaRes.ok) throw new Error("Failed to generate EDA report");
+
+      const edaMsg = await edaRes.json();
+      console.log("EDA report URL:", edaMsg.report_url);
+    }
+
       // Refresh projects
       const newProject = {
         id: projectId,
